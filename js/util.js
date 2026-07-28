@@ -39,6 +39,51 @@ function hash2(ix, iz, seed) {
   return (h >>> 0) / 4294967296;
 }
 
+// Procedural tileable grain texture (snow, ice, rock…) — no image assets.
+// opts: base [r,g,b], vary (per-pixel jitter), speckle {chance, color, vary},
+// bands {amp, freq} for horizontal rock striations.
+function makeGrainTexture(opts) {
+  const size = opts.size || 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(size, size);
+  const d = img.data;
+  const rand = mulberry32(opts.seed || 1);
+  const [br, bg, bb] = opts.base;
+  const vary = opts.vary || 8;
+  for (let y = 0; y < size; y++) {
+    // low-frequency band value, tileable via sin
+    let band = 0;
+    if (opts.bands) {
+      band = Math.sin((y / size) * Math.PI * 2 * opts.bands.freq) * opts.bands.amp;
+    }
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4;
+      // two octaves of tileable-ish grain (period = size via wrap of hash lattice)
+      const n1 = hash2(x & 255, y & 255, opts.seed || 1) - 0.5;
+      const n2 = hash2((x >> 2) & 255, (y >> 2) & 255, (opts.seed || 1) + 7) - 0.5;
+      let v = (n1 * 0.6 + n2 * 0.9) * 2 * vary + band;
+      let r = br + v, g = bg + v, b = bb + v;
+      if (opts.speckle && rand() < opts.speckle.chance) {
+        const s = opts.speckle.color;
+        const sv = (rand() - 0.5) * (opts.speckle.vary || 20);
+        r = s[0] + sv; g = s[1] + sv; b = s[2] + sv;
+      }
+      d[i] = U.clamp(r, 0, 255);
+      d[i + 1] = U.clamp(g, 0, 255);
+      d[i + 2] = U.clamp(b, 0, 255);
+      d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 4;
+  tex.encoding = THREE.sRGBEncoding;
+  return tex;
+}
+
 // Smooth 2D value noise in [-1, 1]
 function noise2(x, z, seed) {
   const ix = Math.floor(x), iz = Math.floor(z);

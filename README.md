@@ -4,6 +4,14 @@ An endless 3D snowboarding game that runs entirely in the browser. Carve down a
 procedurally generated mountain, dodge trees and rocks, hit kickers, and land
 spins and grabs for a high score.
 
+Two levels:
+
+- **Powder Peak** — classic wide-open alpine cruising: forests, big kickers,
+  room to carve.
+- **Crystal Caverns** — a steeper, meandering canyon with half-pipe walls that
+  periodically dives through glowing crystal caves. Tighter, faster, with cave
+  ceilings you can bonk your head on. Best scores are tracked per level.
+
 ![Powder Peak](https://img.shields.io/badge/engine-three.js-blue) ![No build](https://img.shields.io/badge/build-none-brightgreen)
 
 ## Play
@@ -49,18 +57,23 @@ On touch devices, on-screen buttons appear automatically.
 
 - Plain JavaScript + [three.js](https://threejs.org) (r147, vendored — works offline and from `file://`).
 - The terrain height field is analytic, so physics and rendering share the exact
-  same surface: no raycasts needed for ground collision.
-- Trees and rocks are `InstancedMesh`es per chunk; chunks are created ahead of
-  the rider and disposed behind.
+  same surface: no raycasts needed for ground collision. The Caverns level adds
+  an analytic *ceiling* field for the caves (and head-bonk collision).
+- Trees, rocks, ice spires, stalactites and crystals are `InstancedMesh`es per
+  chunk; chunks are created ahead of the rider and disposed behind.
+- Textures (snow, ice, banded rock) are generated procedurally on canvas — no
+  image assets. PBR materials + ACES tone mapping; fog and lighting blend
+  dynamically as you ride into and out of caves.
 - All sound effects are synthesized live with WebAudio — no audio assets.
 
 ## Files
 
 ```
-index.html    — page shell, HUD, overlays, styles
-js/util.js    — math helpers, seeded RNG, value noise
+index.html    — page shell, HUD, overlays, level select, styles
+js/util.js    — math helpers, seeded RNG, value noise, texture generator
+js/levels.js  — level definitions (terrain, atmosphere, physics params)
 js/audio.js   — WebAudio synthesized SFX
-js/world.js   — terrain chunks, obstacles, ramps, coins
+js/world.js   — terrain chunks, caverns, obstacles, ramps, coins
 js/player.js  — rider model, physics, tricks, collisions
 js/main.js    — game loop, camera, particles, input, HUD
 lib/three.min.js — vendored three.js r147

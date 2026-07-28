@@ -87,7 +87,8 @@ class Player {
   // --- state ---------------------------------------------------------------
 
   reset() {
-    this.pos.set(0, groundHeight(0, -5), -5);
+    const x0 = LVL.hasCaverns ? canyonCenter(-5) : 0;
+    this.pos.set(x0, groundHeight(x0, -5), -5);
     this.heading = 0;          // 0 = straight downhill (-z)
     this.speed = 9;
     this.vy = 0;
@@ -135,7 +136,7 @@ class Player {
   _updateGrounded(dt, input, world, events) {
     const steer = this.alive ? input.steer : 0;
     const grip = U.clamp(this.speed / 9, 0.35, 1);
-    this.heading += steer * PHYS.STEER * grip * (input.tuck ? 0.55 : 1) * dt;
+    this.heading += steer * PHYS.STEER * LVL.steerMul * grip * (input.tuck ? 0.55 : 1) * dt;
 
     const fx = Math.sin(this.heading), fz = -Math.cos(this.heading);
     const g = groundGrad(this.pos.x, this.pos.z);
@@ -146,7 +147,7 @@ class Player {
     if (this.alive && this.speed < PHYS.MIN_SPEED) {
       this.speed = U.approach(this.speed, PHYS.MIN_SPEED, 4, dt);  // skate push
     }
-    this.speed = U.clamp(this.speed, 0, PHYS.MAX_SPEED);
+    this.speed = U.clamp(this.speed, 0, LVL.maxSpeed || PHYS.MAX_SPEED);
 
     const oldY = this.pos.y;
     const wasOnRamp = world.onRamp(this.pos.x, this.pos.z, this.pos.z);
@@ -190,6 +191,13 @@ class Player {
     this.pos.y += this.vy * dt;
     this.vy -= PHYS.G * dt;
 
+    // bonk against a cave ceiling
+    const ceil = world.ceilingAt(this.pos.x, this.pos.z);
+    if (this.pos.y + 1.5 > ceil) {
+      this.pos.y = ceil - 1.5;
+      if (this.vy > 0) { this.vy = -0.5; events.push({ t: 'bonk' }); }
+    }
+
     // tricks
     const spinTarget = (this.alive ? input.steer : 0) * PHYS.SPIN_RATE;
     this.spinVel = U.damp(this.spinVel, spinTarget, 6, dt);
@@ -201,7 +209,7 @@ class Player {
       this.pos.y = ground;
       this.grounded = true;
       this.vyGround = 0;
-      this.speed = Math.min(Math.hypot(this.velX, this.velZ), PHYS.MAX_SPEED);
+      this.speed = Math.min(Math.hypot(this.velX, this.velZ), LVL.maxSpeed || PHYS.MAX_SPEED);
 
       // impact along the surface normal (soft when landing on a downslope)
       groundNormal(this.pos.x, this.pos.z, this._n);

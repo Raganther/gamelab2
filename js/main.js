@@ -111,11 +111,15 @@
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setClearColor(0x000000, 0);
   renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.06;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
   scene.fog = new THREE.Fog(0xcfe0f2, 40, 300);
+  const openFogColor = new THREE.Color();
+  const caveFogColor = new THREE.Color();
 
   const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 700);
 
@@ -132,8 +136,9 @@
 
   // distant mountain backdrop (unfogged, pre-hazed color)
   const backdrop = new THREE.Group();
+  let backdropMat;
   {
-    const mat = new THREE.MeshBasicMaterial({ color: 0xb9cfe9, fog: false });
+    const mat = backdropMat = new THREE.MeshBasicMaterial({ color: 0xb9cfe9, fog: false });
     const defs = [
       [-260, 150, 90], [-150, 200, 120], [-40, 170, 100],
       [70, 210, 130], [190, 160, 95], [290, 190, 110], [0, 240, 150],
@@ -160,19 +165,22 @@
   const hud = {
     score: $('hud-score'), dist: $('hud-dist'), speed: $('hud-speed'),
     hearts: $('hud-hearts'), best: $('hud-best'), popup: $('popup'),
+    level: $('hud-level'),
     menu: $('menu'), over: $('over'), paused: $('paused'),
     finalScore: $('final-score'), finalDist: $('final-dist'), finalBest: $('final-best'),
     newBest: $('new-best'), touch: $('touch-controls'), muteBtn: $('btn-mute'),
   };
 
-  const BEST_KEY = 'powder-peak-best';
-  function loadBest() { try { return parseInt(localStorage.getItem(BEST_KEY) || '0', 10) || 0; } catch (e) { return 0; } }
-  function saveBest(v) { try { localStorage.setItem(BEST_KEY, String(v)); } catch (e) { /* private mode */ } }
+  // best score is tracked per level
+  function bestKey() { return 'powder-peak-best-' + LVL.id; }
+  function loadBest() { try { return parseInt(localStorage.getItem(bestKey()) || '0', 10) || 0; } catch (e) { return 0; } }
+  function saveBest(v) { try { localStorage.setItem(bestKey(), String(v)); } catch (e) { /* private mode */ } }
 
   // --- game state -----------------------------------------------------------
   let state = 'menu';           // menu | play | pause | over
   let trickScore = 0, coinCount = 0, distance = 0, best = loadBest();
   let popupTimer = null, deadTimer = 0, sprayBudget = 0;
+  let prevCavern = 0;           // for cave-entry detection
 
   function totalScore() { return Math.floor(distance) + coinCount * 25 + trickScore; }
 
@@ -188,6 +196,7 @@
     hud.dist.textContent = Math.floor(distance) + ' m';
     hud.speed.textContent = state === 'menu' ? '0' : Math.round(player.speed * 3.6);
     hud.best.textContent = 'BEST ' + best.toLocaleString();
+    hud.level.textContent = LVL.name.toUpperCase();
     let h = '';
     for (let i = 0; i < 3; i++) h += `<span class="${i < player.hearts ? 'on' : 'off'}">♥</span>`;
     hud.hearts.innerHTML = h;
@@ -200,11 +209,28 @@
     hud.paused.classList.toggle('hidden', s !== 'pause');
   }
 
-  function startRun() {
+  // apply the active level's sky, fog, lighting and backdrop
+  function applyLevelAtmosphere() {
+    document.body.className = LVL.bodyClass;
+    openFogColor.setHex(LVL.fogColor);
+    caveFogColor.setHex(LVL.caveFogColor || LVL.fogColor);
+    scene.fog.color.copy(openFogColor);
+    scene.fog.near = LVL.fogNear;
+    scene.fog.far = LVL.fogFar;
+    hemi.intensity = LVL.hemiIntensity;
+    sun.intensity = LVL.sunIntensity;
+    backdropMat.color.setHex(LVL.backdropColor);
+  }
+
+  function startRun(levelId) {
+    if (levelId) setLevel(levelId);
+    applyLevelAtmosphere();
+    best = loadBest();
     world.reset();
     player.reset();
     world.ensure(player.pos.z);
     trickScore = 0; coinCount = 0; distance = 0; deadTimer = 0;
+    prevCavern = 0;
     followX = 0; followZ = -1;
     updateHud();
     setState('play');
@@ -254,8 +280,10 @@
     sfx.setMuted(!sfx.muted);
     hud.muteBtn.textContent = sfx.muted ? '🔇' : '🔊';
   });
-  $('btn-start').addEventListener('click', () => { firstGesture(); startRun(); });
+  $('btn-level-alpine').addEventListener('click', () => { firstGesture(); startRun('alpine'); });
+  $('btn-level-caverns').addEventListener('click', () => { firstGesture(); startRun('caverns'); });
   $('btn-again').addEventListener('click', () => { firstGesture(); startRun(); });
+  $('btn-menu').addEventListener('click', () => setState('menu'));
   $('btn-resume').addEventListener('click', () => setState('play'));
 
   // touch controls
@@ -302,6 +330,7 @@
           spray.emit(ev.x, ev.y - 0.5, ev.z, 0, 0, 6, 2.5);
           break;
         case 'jump': sfx.jump(); break;
+        case 'bonk': sfx.land(false); break;
         case 'launch': sfx.launch(); showPopup('BIG AIR!', 'air'); break;
         case 'land':
           sfx.land(ev.hard);
@@ -363,9 +392,11 @@
     camPos.x += (tx - camPos.x) * l;
     camPos.y += (ty - camPos.y) * l;
     camPos.z += (tz - camPos.z) * l;
-    // never sink the camera into the snow
+    // never sink the camera into the snow, nor poke it through a cave ceiling
     const minY = groundHeight(camPos.x, camPos.z) + 1.1;
     if (camPos.y < minY) camPos.y = minY;
+    const camCeil = world.ceilingAt(camPos.x, camPos.z);
+    if (isFinite(camCeil) && camPos.y > camCeil - 0.7) camPos.y = Math.max(minY, camCeil - 0.7);
     camera.position.copy(camPos);
     const ll = 1 - Math.exp(-8 * dt);
     lookPos.x += (lx - lookPos.x) * ll;
@@ -373,7 +404,7 @@
     lookPos.z += (lz - lookPos.z) * ll;
     camera.lookAt(lookPos);
 
-    const targetFov = 70 + U.clamp(player.speed / PHYS.MAX_SPEED, 0, 1) * 12;
+    const targetFov = 70 + U.clamp(player.speed / (LVL.maxSpeed || PHYS.MAX_SPEED), 0, 1) * 12;
     fov = U.damp(fov, targetFov, 3, dt);
     if (Math.abs(camera.fov - fov) > 0.05) {
       camera.fov = fov;
@@ -427,10 +458,21 @@
     snowfall.update(dt, camera, time);
     updateCamera(dt, time);
 
+    // atmosphere: blend fog & light toward cave values while underground
+    const cf = world.cavernFactorAt(player.pos.z);
+    scene.fog.color.copy(openFogColor).lerp(caveFogColor, cf);
+    scene.fog.near = U.lerp(LVL.fogNear, LVL.caveFogNear || LVL.fogNear, cf);
+    scene.fog.far = U.lerp(LVL.fogFar, LVL.caveFogFar || LVL.fogFar, cf);
+    hemi.intensity = U.lerp(LVL.hemiIntensity, LVL.caveHemiIntensity ?? LVL.hemiIntensity, cf);
+    sun.intensity = U.lerp(LVL.sunIntensity, LVL.caveSunIntensity ?? LVL.sunIntensity, cf);
+    snowfall.points.material.opacity = 0.75 * (1 - cf * 0.95);
+    if (state === 'play' && prevCavern < 0.45 && cf >= 0.45) showPopup('INTO THE CAVES!', 'air');
+    prevCavern = cf;
+
     // sun and backdrop follow the player down the mountain
     sun.position.set(player.pos.x + 40, player.pos.y + 65, player.pos.z + 35);
     sun.target.position.copy(player.pos);
-    backdrop.position.set(player.pos.x * 0.9, WORLD.SLOPE * (player.pos.z - 240), player.pos.z - 300);
+    backdrop.position.set(player.pos.x * 0.9, LVL.slope * (player.pos.z - 240), player.pos.z - 300);
 
     renderer.render(scene, camera);
   }
@@ -441,6 +483,7 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
+  applyLevelAtmosphere();
   updateHud();
   setState('menu');
   requestAnimationFrame(frame);
@@ -448,6 +491,7 @@
   // debug/tinkering handle
   window.PP = {
     world, player, camera,
+    start: (id) => startRun(id),
     get state() { return state; },
     get trickScore() { return trickScore; },
     get coinCount() { return coinCount; },
