@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Heliotrope — a garden puzzle</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌻</text></svg>">
+<style>
+  :root {
+    --loam: #131d17;
+    --loam-2: #1a2820;
+    --parchment: #f2e9d8;
+    --ink: #2a2119;
+    --gold: #ffd27f;
+    --gold-deep: #e8a94e;
+    --leaf: #5cab6d;
+    --faded: rgba(242, 233, 216, 0.55);
+    --serif: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+    --sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background:
+      radial-gradient(circle at 50% -20%, rgba(255, 210, 127, 0.09) 0%, rgba(255, 210, 127, 0) 55%),
+      var(--loam);
+    color: var(--parchment);
+    font-family: var(--sans);
+    user-select: none;
+    -webkit-user-select: none;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px 10px; gap: 12px;
+  }
+  .brand {
+    font-family: var(--serif); font-style: italic; font-size: 22px;
+    color: var(--gold); letter-spacing: 1px; white-space: nowrap;
+  }
+  .brand .tag { font-size: 11px; color: var(--faded); letter-spacing: 2px; font-style: normal; font-family: var(--sans); }
+  #level-name {
+    font-family: var(--serif); font-style: italic; font-size: 18px;
+    text-align: center; flex: 1; letter-spacing: 0.5px;
+  }
+  .stats { display: flex; gap: 14px; align-items: baseline; white-space: nowrap; }
+  .stats .n { font-size: 20px; font-weight: 700; color: var(--gold); font-variant-numeric: tabular-nums; }
+  .stats .lbl { font-size: 11px; color: var(--faded); letter-spacing: 1.5px; }
+
+  #stage { flex: 1; position: relative; min-height: 0; }
+  #board { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+
+  footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 20px 14px; gap: 12px;
+  }
+  #hint {
+    font-family: var(--serif); font-style: italic; font-size: 14px;
+    color: var(--faded); text-align: center; flex: 1;
+    text-wrap: balance;
+  }
+  .btnrow { display: flex; gap: 8px; align-items: center; }
+  .ui-btn {
+    background: var(--loam-2); border: 1px solid rgba(242, 233, 216, 0.18);
+    color: var(--parchment); border-radius: 10px; padding: 7px 12px;
+    font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer;
+    letter-spacing: 0.5px;
+  }
+  .ui-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+  .ui-btn:disabled { opacity: 0.3; cursor: default; }
+
+  #dots { display: flex; gap: 7px; align-items: center; }
+  .dot {
+    width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--faded);
+    background: transparent; cursor: pointer; padding: 0;
+  }
+  .dot.done { background: var(--leaf); border-color: var(--leaf); }
+  .dot.cur { border-color: var(--gold); box-shadow: 0 0 8px rgba(255, 210, 127, 0.7); }
+  .dot.locked { opacity: 0.25; cursor: default; }
+
+  /* overlays */
+  .overlay {
+    position: fixed; inset: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(10, 16, 12, 0.72); backdrop-filter: blur(4px);
+  }
+  .hidden { display: none !important; }
+  .card {
+    background: var(--parchment); color: var(--ink);
+    border-radius: 18px; padding: 34px 40px; max-width: 460px; width: calc(100% - 40px);
+    text-align: center; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  }
+  .card h1 {
+    font-family: var(--serif); font-style: italic; font-weight: 500;
+    font-size: 40px; letter-spacing: 1px; color: #7a5b21;
+    text-wrap: balance; line-height: 1.1;
+  }
+  .card h1 .sun { color: #d98b23; }
+  .card .rule {
+    font-family: var(--serif); font-style: italic; font-size: 17px; line-height: 1.55;
+    margin: 18px 0 6px; color: #4a3b28; text-wrap: balance;
+  }
+  .card .keys {
+    display: grid; grid-template-columns: auto 1fr; gap: 6px 14px;
+    width: fit-content; margin: 18px auto 0; text-align: left; font-size: 13px;
+  }
+  .card kbd {
+    font-family: var(--sans); font-size: 11px; font-weight: 700;
+    background: #e5d9c0; border: 1px solid #c9b894; border-bottom-width: 3px;
+    border-radius: 6px; padding: 2px 8px; white-space: nowrap;
+  }
+  .card .keys span { align-self: center; color: #5c4a33; }
+  .go-btn {
+    margin-top: 22px; border: 0; cursor: pointer;
+    font-family: var(--serif); font-style: italic; font-size: 19px; letter-spacing: 1px;
+    color: #241a0e; background: linear-gradient(100deg, var(--gold), var(--gold-deep));
+    padding: 12px 44px; border-radius: 999px;
+    box-shadow: 0 8px 22px rgba(232, 169, 78, 0.45);
+    transition: transform 0.1s ease;
+  }
+  .go-btn:hover { transform: scale(1.04); }
+  .win-steps { font-size: 15px; margin-top: 10px; color: #4a3b28; }
+  .win-steps b { font-size: 26px; color: #7a5b21; }
+  #win-perfect {
+    display: inline-block; margin-top: 12px; background: var(--leaf); color: #fff;
+    font-size: 12px; font-weight: 800; letter-spacing: 2px;
+    padding: 4px 14px; border-radius: 999px;
+  }
+  .quiet-btn {
+    margin-top: 14px; margin-left: 10px; background: transparent; cursor: pointer;
+    border: 1.5px solid rgba(42, 33, 25, 0.3); color: #4a3b28;
+    font-family: var(--sans); font-size: 13px; font-weight: 700; letter-spacing: 1px;
+    padding: 9px 22px; border-radius: 999px;
+  }
+  .quiet-btn:hover { border-color: #7a5b21; }
+  @media (max-width: 640px) {
+    .brand .tag { display: none; }
+    #hint { font-size: 12px; }
+    .card { padding: 26px 22px; }
+    .card h1 { font-size: 30px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Heliotrope <span class="tag">A GARDEN PUZZLE</span></div>
+  <div id="level-name">1. First Light</div>
+  <div class="stats">
+    <span><span class="n" id="steps">0</span> <span class="lbl" id="par">par 0</span></span>
+    <span><span class="n" id="blooms">0/1</span> <span class="lbl">BLOOMS</span></span>
+  </div>
+</header>
+
+<div id="stage"><canvas id="board"></canvas></div>
+
+<footer>
+  <div class="btnrow">
+    <button class="ui-btn" id="btn-prev" title="Previous level (P)">◀</button>
+    <div id="dots"></div>
+    <button class="ui-btn" id="btn-next" title="Next level (N)">▶</button>
+  </div>
+  <div id="hint"></div>
+  <div class="btnrow">
+    <button class="ui-btn" id="btn-undo" title="Undo (Z)">↩ Undo</button>
+    <button class="ui-btn" id="btn-restart" title="Restart (R)">⟳</button>
+    <button class="ui-btn" id="btn-help" title="How to play">?</button>
+    <button class="ui-btn" id="btn-mute" title="Mute (M)">🔊</button>
+  </div>
+</footer>
+
+<div id="intro" class="overlay">
+  <div class="card">
+    <h1>You are <span class="sun">the sun</span>.</h1>
+    <p class="rule">
+      Every step you take, every vine in the garden grows one step toward you.<br>
+      You never touch anything — you only shine. Lead each vine to its ring, and the garden blooms.
+    </p>
+    <p class="rule" style="font-size: 14px; margin-top: 10px;">
+      Vines float across water as lily pads you can walk on.
+      On land they are hedges in your way — and they love you enough to trap you.
+    </p>
+    <div class="keys">
+      <kbd>← ↑ ↓ →</kbd><span>step (the garden grows)</span>
+      <kbd>Space</kbd><span>wait (it still grows)</span>
+      <kbd>Z</kbd><span>undo</span>
+      <kbd>R</kbd><span>restart level</span>
+    </div>
+    <button class="go-btn" id="btn-start">Rise ☀</button>
+  </div>
+</div>
+
+<div id="win" class="overlay hidden">
+  <div class="card">
+    <h1 id="win-title">It blooms!</h1>
+    <p class="win-steps"><b id="win-steps">0</b> steps · par <span id="win-par">0</span></p>
+    <div id="win-perfect" class="hidden">☀ PERFECT LIGHT</div>
+    <br>
+    <button class="go-btn" id="btn-win-next">Next garden ▸</button>
+    <button class="quiet-btn" id="btn-win-replay">Replay</button>
+  </div>
+</div>
+
+<script src="js/engine.js"></script>
+<script src="js/levels.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/render.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
