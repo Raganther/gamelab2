@@ -70,6 +70,8 @@
   }
   .ui-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
   .ui-btn:disabled { opacity: 0.3; cursor: default; }
+  .ui-btn.busy { border-color: var(--gold); color: var(--gold); animation: busypulse 1s infinite; }
+  @keyframes busypulse { 50% { opacity: 0.55; } }
 
   #dots { display: flex; gap: 7px; align-items: center; }
   .dot {
@@ -164,6 +166,7 @@
   </div>
   <div id="hint"></div>
   <div class="btnrow">
+    <button class="ui-btn" id="btn-solve" title="Watch the optimal solution">✨ Solve</button>
     <button class="ui-btn" id="btn-undo" title="Undo (Z)">↩ Undo</button>
     <button class="ui-btn" id="btn-restart" title="Restart (R)">⟳</button>
     <button class="ui-btn" id="btn-help" title="How to play">?</button>
@@ -182,6 +185,10 @@
       Vines float across water as lily pads you can walk on.
       On land they are hedges in your way — and they love you enough to trap you.
     </p>
+    <p class="rule" style="font-size: 14px; margin-top: 8px;">
+      Later: <b>thorn brambles</b> seek you too — they never bloom, they only block, and they doze until you come near.
+      <b>Stone lanterns</b> outshine you: any vine close to one grows toward the lantern instead.
+    </p>
     <div class="keys">
       <kbd>← ↑ ↓ →</kbd><span>step (the garden grows)</span>
       <kbd>Space</kbd><span>wait (it still grows)</span>
@@ -195,6 +202,7 @@
 <div id="win" class="overlay hidden">
   <div class="card">
     <h1 id="win-title">It blooms!</h1>
+    <p class="rule hidden" id="win-sub" style="font-size: 14px;">Watching earns no progress — now do it yourself.</p>
     <p class="win-steps"><b id="win-steps">0</b> steps · par <span id="win-par">0</span></p>
     <div id="win-perfect" class="hidden">☀ PERFECT LIGHT</div>
     <br>

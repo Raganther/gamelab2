@@ -14,10 +14,17 @@ rule unfolds into everything else:
 - **Colour** — a bloom ring only opens for its own vine; to every other
   vine it is a wall (which you can use).
 - **Waiting** is a move. The garden keeps growing.
+- **Thorn brambles** seek you too — they never bloom, they only block.
+  They doze until their target comes within 4 cells.
+- **Stone lanterns** outshine you: a vine tip within 3 cells of a lantern
+  (and closer to it than to you) grows toward the lantern instead. A vine
+  parked at a lantern is parked forever — trap brambles there, or use the
+  pull to lead vines where the sun can never stand.
 
-Nine hand-built levels, each **machine-verified solvable** — `tools/solve.js`
+Fifteen hand-built levels, each **machine-verified solvable** — `tools/solve.js`
 breadth-first-searches the real game engine and stamps every level's `par`
-with the true optimal step count.
+(and its `solution`, used by the in-game ✨ Solve button) with the true
+optimal line.
 
 ## Play
 
@@ -32,6 +39,9 @@ dependencies.
 | R | Restart level |
 | N / P | Next / previous unlocked level |
 | M | Mute |
+
+The **✨ Solve** button replays the solver's optimal line so you can watch the
+level solve itself — watching earns no progress; the win is yours to earn.
 
 Touch: swipe to step, tap to wait.
 

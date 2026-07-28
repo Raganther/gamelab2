@@ -20,6 +20,7 @@ const VINE_COLORS = {
   g: { body: '#5cab6d', dark: '#2c5e3d', pad: '#4f8f5f', petal: '#f2e9d8', core: '#ffd27f' },
   p: { body: '#e58fb1', dark: '#96496b', pad: '#c9748f', petal: '#ffd9e8', core: '#ffd27f' },
   o: { body: '#e8a95c', dark: '#94622a', pad: '#c98f4d', petal: '#ffe9c9', core: '#ff9d5c' },
+  t: { body: '#6e5d85', dark: '#372e4c', pad: '#584a6e', petal: '#6e5d85', core: '#372e4c' },
 };
 
 class GardenRenderer {
@@ -229,6 +230,39 @@ class GardenRenderer {
       ctx.restore();
     }
 
+    // stone lanterns: pillar, warm glass, gentle pull-radius ring
+    for (const l of lv.lanterns) {
+      const px = this.cx(l.x), py = this.cy(l.y);
+      const R = HELIO.LANTERN_RANGE * c;
+      ctx.strokeStyle = `rgba(255,210,127,${0.10 + 0.04 * Math.sin(time * 1.8 + l.x)})`;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([c * 0.16, c * 0.14]);
+      ctx.beginPath();
+      ctx.arc(px, py, R, 0, 7);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const flick = 0.85 + 0.15 * Math.sin(time * 6.3 + l.y * 5);
+      const glow = ctx.createRadialGradient(px, py - c * 0.08, c * 0.05, px, py - c * 0.08, c * 1.05);
+      glow.addColorStop(0, `rgba(255,205,120,${0.4 * flick})`);
+      glow.addColorStop(1, 'rgba(255,205,120,0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(px, py - c * 0.08, c * 1.05, 0, 7);
+      ctx.fill();
+      ctx.fillStyle = '#4c525c';
+      this._rr(ctx, px - c * 0.17, py + c * 0.18, c * 0.34, c * 0.16, c * 0.05);
+      ctx.fill();
+      ctx.fillStyle = '#3a3f47';
+      this._rr(ctx, px - c * 0.10, py - c * 0.26, c * 0.20, c * 0.46, c * 0.045);
+      ctx.fill();
+      ctx.fillStyle = `rgba(255,214,140,${0.75 + 0.25 * flick})`;
+      this._rr(ctx, px - c * 0.065, py - c * 0.21, c * 0.13, c * 0.20, c * 0.03);
+      ctx.fill();
+      ctx.fillStyle = '#4c525c';
+      this._rr(ctx, px - c * 0.14, py - c * 0.36, c * 0.28, c * 0.10, c * 0.04);
+      ctx.fill();
+    }
+
     // vines
     for (const vine of st.vines) this._drawVine(ctx, vine, st, time);
 
@@ -292,7 +326,8 @@ class GardenRenderer {
     }
     const sway = Math.sin(time * 1.7 + cells[0][0] * 3) * c * 0.02;
 
-    // leaves peeking out from under the body
+    // leaves (or thorns) peeking out from under the body
+    const thorny = vine.c === 't';
     for (let i = 1; i < cells.length - 1; i++) {
       const [x, y] = cells[i];
       const side = i % 2 ? 1 : -1;
@@ -300,10 +335,17 @@ class GardenRenderer {
       const ang = Math.atan2(this.cy(cells[i + 1][1]) - py, this.cx(cells[i + 1][0]) - px) + side * 1.9;
       ctx.save();
       ctx.translate(px, py + sway);
-      ctx.rotate(ang + Math.sin(time * 2 + i) * 0.08);
-      ctx.fillStyle = col.body;
+      ctx.rotate(ang + (thorny ? 0 : Math.sin(time * 2 + i) * 0.08));
+      ctx.fillStyle = thorny ? col.dark : col.body;
       ctx.beginPath();
-      ctx.ellipse(c * 0.24, 0, c * 0.16, c * 0.075, 0, 0, 7);
+      if (thorny) {
+        ctx.moveTo(c * 0.08, -c * 0.06);
+        ctx.lineTo(c * 0.34, 0);
+        ctx.lineTo(c * 0.08, c * 0.06);
+        ctx.closePath();
+      } else {
+        ctx.ellipse(c * 0.24, 0, c * 0.16, c * 0.075, 0, 0, 7);
+      }
       ctx.fill();
       ctx.restore();
     }
@@ -350,6 +392,26 @@ class GardenRenderer {
       ctx.fillStyle = col.core;
       ctx.beginPath();
       ctx.arc(0, 0, c * 0.13, 0, 7);
+      ctx.fill();
+      ctx.restore();
+    } else if (vine.c === 't') {
+      const s2 = Math.max(tipScale, 0.4);
+      ctx.save();
+      ctx.translate(tpx, tpy);
+      ctx.rotate(time * 0.9);
+      ctx.fillStyle = col.dark;
+      for (let k = 0; k < 5; k++) {
+        ctx.rotate(Math.PI * 2 / 5);
+        ctx.beginPath();
+        ctx.moveTo(0, -c * 0.06 * s2);
+        ctx.lineTo(c * 0.26 * s2, 0);
+        ctx.lineTo(0, c * 0.06 * s2);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.fillStyle = col.body;
+      ctx.beginPath();
+      ctx.arc(0, 0, c * 0.12 * s2, 0, 7);
       ctx.fill();
       ctx.restore();
     } else {

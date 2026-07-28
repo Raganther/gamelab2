@@ -14,6 +14,11 @@
 //    (a lily pad). On land, vine cells are tall hedges the sun cannot pass.
 //  - A vine reaching a socket of its own colour blooms there and stops
 //    forever; the bloom is solid. All sockets bloomed = level solved.
+//  - Thorn brambles ('t') are hostile vines: they never bloom, they only
+//    block. They doze until their target comes within WAKE range.
+//  - Stone lanterns ('L') outshine the sun: a vine tip within LANTERN
+//    range grows toward the lantern instead (nearest wins, sun wins ties).
+//    Lantern cells are solid to everyone.
 // ---------------------------------------------------------------------------
 'use strict';
 
@@ -21,15 +26,19 @@ const HELIO = (function () {
 
   const FLOOR = 0, WALL = 1, WATER = 2;
   const DIRS = { U: [0, -1], D: [0, 1], L: [-1, 0], R: [1, 0] };
+  const LANTERN_RANGE = 3;   // lantern pull radius (Manhattan)
+  const BRAMBLE_WAKE = 4;    // brambles doze beyond this distance to target
 
-  // characters: # wall, . floor, ~ water, S sun,
-  // vine roots: g p o (green/pink/orange), sockets: G P O
+  // characters: # wall, . floor, ~ water, S sun, L lantern,
+  // vine roots: g p o (green/pink/orange), t thorn bramble,
+  // sockets: G P O (brambles have none)
   function parseLevel(def) {
     const rows = def.map;
     const h = rows.length, w = rows[0].length;
     const cells = new Uint8Array(w * h);
     const sockets = [];
     const vines = [];
+    const lanterns = [];
     let sun = null;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
@@ -39,12 +48,13 @@ const HELIO = (function () {
         else if (ch === '~') base = WATER;
         cells[y * w + x] = base;
         if (ch === 'S') sun = [x, y];
-        if (ch >= 'a' && ch <= 'z' && ch !== 's') vines.push({ c: ch, cells: [[x, y]], bloomed: false });
-        if (ch >= 'A' && ch <= 'Z' && ch !== 'S') sockets.push({ x, y, c: ch.toLowerCase() });
+        if (ch === 'L') lanterns.push({ x, y });
+        else if (ch >= 'a' && ch <= 'z' && ch !== 's') vines.push({ c: ch, cells: [[x, y]], bloomed: false });
+        else if (ch >= 'A' && ch <= 'Z' && ch !== 'S') sockets.push({ x, y, c: ch.toLowerCase() });
       }
     }
-    vines.sort((a, b) => a.c < b.c ? -1 : 1);   // deterministic growth order
-    return { w, h, cells, sockets, vines0: vines, sun0: sun, name: def.name, par: def.par || 0, hint: def.hint || '' };
+    vines.sort((a, b) => a.c < b.c ? -1 : a.c > b.c ? 1 : 0);   // deterministic growth order
+    return { w, h, cells, sockets, vines0: vines, lanterns, sun0: sun, name: def.name, par: def.par || 0, hint: def.hint || '' };
   }
 
   function initialState(lv) {
@@ -97,20 +107,41 @@ const HELIO = (function () {
     return null;
   }
 
+  function lanternAt(lv, x, y) {
+    for (const l of lv.lanterns) if (l.x === x && l.y === y) return l;
+    return null;
+  }
+
   function canSunEnter(lv, st, x, y) {
     const c = cellAt(lv, x, y);
     if (c === WALL) return false;
+    if (lanternAt(lv, x, y)) return false;
     const v = vineAt(st, x, y);
     if (c === WATER) return !!v;            // lily pad
     if (v) return false;                     // hedge on land (blooms included)
     return true;
   }
 
+  // which light does this tip follow? the sun, unless a lantern is both
+  // in range and strictly closer (nearest lantern wins; the sun wins ties)
+  function attractorFor(lv, st, tip) {
+    let tgt = st.sun;
+    let best = Math.abs(st.sun[0] - tip[0]) + Math.abs(st.sun[1] - tip[1]);
+    for (const l of lv.lanterns) {
+      const d = Math.abs(l.x - tip[0]) + Math.abs(l.y - tip[1]);
+      if (d <= LANTERN_RANGE && d < best) { tgt = [l.x, l.y]; best = d; }
+    }
+    return { tgt, dist: best };
+  }
+
   // where would this vine grow right now? returns {x, y, bloom} or null
   function growthTarget(lv, st, vine) {
     if (vine.bloomed) return null;
     const tip = vine.cells[vine.cells.length - 1];
-    const dx = st.sun[0] - tip[0], dy = st.sun[1] - tip[1];
+    const at = attractorFor(lv, st, tip);
+    if (vine.c === 't' && at.dist > BRAMBLE_WAKE) return null;   // dozing
+    const dx = at.tgt[0] - tip[0], dy = at.tgt[1] - tip[1];
+    if (dx === 0 && dy === 0) return null;
     const cand = [];
     const hx = [tip[0] + Math.sign(dx), tip[1]];
     const vy = [tip[0], tip[1] + Math.sign(dy)];
@@ -125,6 +156,7 @@ const HELIO = (function () {
       if (cellAt(lv, x, y) === WALL) continue;
       if (x === st.sun[0] && y === st.sun[1]) continue;
       if (vineAt(st, x, y)) continue;
+      if (lanternAt(lv, x, y)) continue;
       const so = socketAt(lv, x, y);
       if (so && so.c !== vine.c) continue;
       return { x, y, bloom: !!so };
@@ -165,9 +197,10 @@ const HELIO = (function () {
   }
 
   return {
-    FLOOR, WALL, WATER, DIRS,
+    FLOOR, WALL, WATER, DIRS, LANTERN_RANGE, BRAMBLE_WAKE,
     parseLevel, initialState, cloneState, serialize,
-    cellAt, vineAt, bloomAt, socketAt, canSunEnter, growthTarget, step, isWon,
+    cellAt, vineAt, bloomAt, socketAt, lanternAt, attractorFor,
+    canSunEnter, growthTarget, step, isWon,
   };
 })();
 

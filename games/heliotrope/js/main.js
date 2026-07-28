@@ -23,6 +23,8 @@
   let lv = null, st = null;
   let undoStack = [];
   let won = false;
+  let autoplayTimer = null;
+  let autoplaying = false;
 
   function maxUnlocked() {
     let n = 0;
@@ -31,6 +33,7 @@
   }
 
   function loadLevel(i) {
+    stopAutoplay();
     levelIndex = U2.clamp(i, 0, LEVELS_HELIO.length - 1);
     progress.current = levelIndex;
     saveProgress();
@@ -104,21 +107,55 @@
   }
 
   function undo() {
+    if (autoplaying) { stopAutoplay(); return; }
     if (!undoStack.length || won) return;
     st = undoStack.pop();
     sfx.undo();
     updateHud();
   }
 
+  function stopAutoplay() {
+    if (autoplayTimer) clearInterval(autoplayTimer);
+    autoplayTimer = null;
+    if (autoplaying) {
+      autoplaying = false;
+      $('btn-solve').textContent = '✨ Solve';
+      $('btn-solve').classList.remove('busy');
+    }
+  }
+
+  // watch the sun solve it: reset, then replay the solver's optimal line
+  function startAutoplay() {
+    if (autoplaying) { stopAutoplay(); return; }
+    const sol = LEVELS_HELIO[levelIndex].solution;
+    if (!sol) return;
+    loadLevel(levelIndex);
+    autoplaying = true;
+    $('btn-solve').textContent = '■ Stop';
+    $('btn-solve').classList.add('busy');
+    let i = 0;
+    autoplayTimer = setInterval(() => {
+      if (won || i >= sol.length) { stopAutoplay(); return; }
+      act(sol[i++]);
+    }, 320);
+  }
+
   function onWin() {
     won = true;
+    const watched = autoplaying;
+    stopAutoplay();
     const def = LEVELS_HELIO[levelIndex];
-    const prevBest = progress.solved[def.name];
-    if (!prevBest || st.steps < prevBest) progress.solved[def.name] = st.steps;
-    saveProgress();
+    if (!watched) {
+      // watching the sun solve it earns nothing — doing it yourself does
+      const prevBest = progress.solved[def.name];
+      if (!prevBest || st.steps < prevBest) progress.solved[def.name] = st.steps;
+      saveProgress();
+    }
     sfx.win();
     setTimeout(() => {
-      $('win-title').textContent = levelIndex === LEVELS_HELIO.length - 1 ? 'The whole garden blooms.' : 'It blooms!';
+      $('win-title').textContent = watched ? 'And that is how it is done.'
+        : (levelIndex === LEVELS_HELIO.length - 1 ? 'The whole garden blooms.' : 'It blooms!');
+      $('win-sub').classList.toggle('hidden', !watched);
       $('win-steps').textContent = st.steps;
       $('win-par').textContent = lv.par;
       $('win-perfect').classList.toggle('hidden', st.steps > lv.par);
@@ -144,6 +181,7 @@
     sfx.init();
     if (KEYMAP[e.code]) {
       e.preventDefault();
+      if (autoplaying) { stopAutoplay(); return; }
       if (!$('win').classList.contains('hidden')) return;
       act(KEYMAP[e.code]);
       return;
@@ -170,6 +208,7 @@
   canvas.addEventListener('pointerup', (e) => {
     if (!touchStart) return;
     sfx.init();
+    if (autoplaying) { stopAutoplay(); touchStart = null; return; }
     const dx = e.clientX - touchStart.x, dy = e.clientY - touchStart.y;
     const dist = Math.hypot(dx, dy);
     touchStart = null;
@@ -180,6 +219,7 @@
   });
 
   $('btn-undo').addEventListener('click', () => { sfx.init(); undo(); });
+  $('btn-solve').addEventListener('click', () => { sfx.init(); startAutoplay(); });
   $('btn-restart').addEventListener('click', () => { sfx.init(); loadLevel(levelIndex); });
   $('btn-prev').addEventListener('click', () => loadLevel(levelIndex - 1));
   $('btn-next').addEventListener('click', () => loadLevel(levelIndex + 1));
