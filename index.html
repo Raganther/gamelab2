@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Powder Peak — 3D Snowboarding</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏂</text></svg>">
+<style>
+  :root {
+    --ui-font: 'Trebuchet MS', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --ink: #17263b;
+    --accent: #ff5c39;
+    --panel: rgba(255, 255, 255, 0.88);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: var(--ui-font);
+    color: var(--ink);
+    background:
+      radial-gradient(circle at 78% 14%, rgba(255, 244, 214, 0.95) 0%, rgba(255, 244, 214, 0) 26%),
+      linear-gradient(#7fb2e8 0%, #a8ccf0 38%, #cfe0f2 70%, #e8f0fa 100%);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* ---- HUD ---- */
+  #hud {
+    position: fixed; inset: 0; pointer-events: none;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 14px 18px;
+  }
+  .hud-row { display: flex; justify-content: space-between; align-items: flex-start; }
+  .hud-card {
+    background: var(--panel); border-radius: 14px; padding: 8px 16px;
+    box-shadow: 0 4px 16px rgba(23, 38, 59, 0.18);
+  }
+  #hud-score { font-size: 34px; font-weight: 900; line-height: 1; letter-spacing: 1px; }
+  #hud-dist { font-size: 13px; font-weight: 700; opacity: 0.65; margin-top: 2px; }
+  #hud-best { font-size: 11px; font-weight: 700; color: var(--accent); margin-top: 2px; letter-spacing: 1px; }
+  .hud-right { text-align: right; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+  #hud-speed { font-size: 30px; font-weight: 900; line-height: 1; }
+  .kmh { font-size: 12px; font-weight: 700; opacity: 0.6; }
+  #hud-hearts { font-size: 22px; line-height: 1; letter-spacing: 2px; }
+  #hud-hearts .on { color: #e63950; }
+  #hud-hearts .off { color: rgba(23, 38, 59, 0.2); }
+  #btn-mute {
+    pointer-events: auto; cursor: pointer; border: 0; background: var(--panel);
+    border-radius: 12px; font-size: 18px; padding: 6px 10px;
+    box-shadow: 0 4px 16px rgba(23, 38, 59, 0.18);
+  }
+
+  /* ---- trick popup ---- */
+  #popup {
+    position: fixed; left: 50%; top: 26%; transform: translateX(-50%) scale(0.6);
+    font-size: 44px; font-weight: 900; font-style: italic; letter-spacing: 2px;
+    color: #fff; -webkit-text-stroke: 2px var(--ink);
+    text-shadow: 0 4px 0 rgba(23, 38, 59, 0.25);
+    opacity: 0; pointer-events: none; white-space: nowrap;
+  }
+  #popup.show { animation: pop 1.4s ease-out forwards; }
+  #popup.trick { color: #ffd23c; }
+  #popup.sketchy { color: #ffb0a0; font-size: 34px; }
+  #popup.crash { color: #ff5c39; }
+  #popup.air { color: #9fdcff; }
+  @keyframes pop {
+    0% { opacity: 0; transform: translateX(-50%) scale(0.5); }
+    12% { opacity: 1; transform: translateX(-50%) scale(1.15); }
+    22% { transform: translateX(-50%) scale(1); }
+    80% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-50%) scale(1) translateY(-30px); }
+  }
+
+  /* ---- overlays ---- */
+  .overlay {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(23, 38, 59, 0.35); backdrop-filter: blur(3px); z-index: 10;
+  }
+  .overlay.hidden, .hidden { display: none !important; }
+  .panel {
+    background: var(--panel); border-radius: 24px; padding: 36px 44px;
+    text-align: center; max-width: 520px; width: calc(100% - 48px);
+    box-shadow: 0 24px 60px rgba(23, 38, 59, 0.35);
+  }
+  .title {
+    font-size: 52px; font-weight: 900; font-style: italic; letter-spacing: 3px;
+    background: linear-gradient(100deg, #2fb3a8, #4a90d9 55%, var(--accent));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    line-height: 1.05;
+  }
+  .subtitle { font-size: 14px; font-weight: 700; letter-spacing: 4px; opacity: 0.55; margin-top: 4px; }
+  .controls {
+    display: grid; grid-template-columns: auto 1fr; gap: 7px 16px; text-align: left;
+    margin: 26px auto 6px; font-size: 14px; font-weight: 600; width: fit-content;
+  }
+  .controls kbd {
+    font-family: inherit; font-size: 12px; font-weight: 800;
+    background: #eef2f8; border: 1px solid rgba(23, 38, 59, 0.25); border-bottom-width: 3px;
+    border-radius: 7px; padding: 2px 9px; white-space: nowrap;
+  }
+  .controls span { align-self: center; opacity: 0.8; }
+  .big-btn {
+    margin-top: 24px; border: 0; cursor: pointer; pointer-events: auto;
+    font-family: inherit; font-size: 20px; font-weight: 900; font-style: italic; letter-spacing: 2px;
+    color: #fff; background: linear-gradient(100deg, var(--accent), #ff8c39);
+    padding: 14px 46px; border-radius: 999px;
+    box-shadow: 0 8px 20px rgba(255, 92, 57, 0.5);
+    transition: transform 0.1s ease;
+  }
+  .big-btn:hover { transform: scale(1.05); }
+  .big-btn:active { transform: scale(0.97); }
+  .stats { margin-top: 18px; font-size: 16px; font-weight: 700; }
+  .stats .num { font-size: 46px; font-weight: 900; line-height: 1.1; }
+  #new-best {
+    display: inline-block; margin-top: 10px; font-weight: 900; letter-spacing: 2px;
+    color: #fff; background: #2fb3a8; padding: 4px 16px; border-radius: 999px; font-size: 14px;
+  }
+  .hint { margin-top: 16px; font-size: 12px; opacity: 0.55; font-weight: 600; }
+
+  /* ---- touch controls ---- */
+  #touch-controls {
+    position: fixed; bottom: 18px; left: 0; right: 0;
+    display: flex; justify-content: space-between; padding: 0 22px; z-index: 5;
+  }
+  .tbtn {
+    pointer-events: auto; width: 74px; height: 74px; border-radius: 50%; border: 0;
+    background: rgba(255, 255, 255, 0.75); color: var(--ink);
+    font-size: 30px; font-weight: 900; box-shadow: 0 6px 18px rgba(23, 38, 59, 0.25);
+    touch-action: none;
+  }
+  .tbtn:active { background: #fff; }
+  .tgroup { display: flex; gap: 14px; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div class="hud-row">
+    <div class="hud-card">
+      <div id="hud-score">0</div>
+      <div id="hud-dist">0 m</div>
+      <div id="hud-best">BEST 0</div>
+    </div>
+    <div class="hud-right">
+      <div class="hud-card">
+        <span id="hud-speed">0</span> <span class="kmh">km/h</span>
+      </div>
+      <div class="hud-card"><span id="hud-hearts"></span></div>
+      <button id="btn-mute" title="Mute (M)">🔊</button>
+    </div>
+  </div>
+  <div></div>
+</div>
+
+<div id="popup"></div>
+
+<div id="touch-controls" class="hidden">
+  <div class="tgroup">
+    <button class="tbtn" id="btn-left">◀</button>
+    <button class="tbtn" id="btn-right">▶</button>
+  </div>
+  <button class="tbtn" id="btn-jump">⬆</button>
+</div>
+
+<div id="menu" class="overlay">
+  <div class="panel">
+    <div class="title">POWDER PEAK</div>
+    <div class="subtitle">3D SNOWBOARDING</div>
+    <div class="controls">
+      <kbd>◀ ▶ / A D</kbd><span>Carve &nbsp;·&nbsp; spin in the air</span>
+      <kbd>Space</kbd><span>Jump</span>
+      <kbd>▲ / W</kbd><span>Tuck for speed</span>
+      <kbd>▼ / Shift</kbd><span>Grab in the air</span>
+      <kbd>P</kbd><span>Pause</span>
+    </div>
+    <button class="big-btn" id="btn-start">RIDE ▸</button>
+    <div class="hint">Dodge trees &amp; rocks · hit the orange kickers · land clean spins for big points</div>
+  </div>
+</div>
+
+<div id="over" class="overlay hidden">
+  <div class="panel">
+    <div class="title" style="font-size: 40px;">WIPEOUT</div>
+    <div class="stats">
+      <div class="num" id="final-score">0</div>
+      SCORE · <span id="final-dist">0 m</span>
+      <div style="margin-top: 8px; opacity: 0.6;">BEST <span id="final-best">0</span></div>
+      <div id="new-best" class="hidden">★ NEW BEST ★</div>
+    </div>
+    <button class="big-btn" id="btn-again">RIDE AGAIN ▸</button>
+    <div class="hint">Enter or R also restarts</div>
+  </div>
+</div>
+
+<div id="paused" class="overlay hidden">
+  <div class="panel">
+    <div class="title" style="font-size: 40px;">PAUSED</div>
+    <button class="big-btn" id="btn-resume">RESUME ▸</button>
+    <div class="hint">P or Esc to resume</div>
+  </div>
+</div>
+
+<script src="lib/three.min.js"></script>
+<script src="js/util.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/world.js"></script>
+<script src="js/player.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
