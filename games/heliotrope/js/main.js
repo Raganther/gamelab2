@@ -240,6 +240,31 @@
 
   window.addEventListener('resize', () => renderer.resize());
 
+  // --- touch controls ----------------------------------------------------------
+  const COARSE = window.matchMedia('(pointer: coarse)').matches ||
+    'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  if (COARSE) document.body.classList.add('touch');
+
+  document.querySelectorAll('#dpad .dp').forEach((el) => {
+    let rep = null;
+    const fire = () => {
+      if (autoplaying) { stopAutoplay(); return; }
+      if (!$('win').classList.contains('hidden')) return;
+      act(el.dataset.a);
+    };
+    el.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      sfx.init();
+      fire();
+      clearInterval(rep);
+      rep = setInterval(fire, 210);
+    });
+    for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) {
+      el.addEventListener(ev, () => clearInterval(rep));
+    }
+  });
+
   // --- boot --------------------------------------------------------------------
 
   loadLevel(levelIndex);

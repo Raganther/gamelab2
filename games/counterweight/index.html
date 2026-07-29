@@ -148,11 +148,36 @@
     padding: 9px 22px; border-radius: 999px;
   }
   .quiet-btn:hover { border-color: #6b5117; }
+  /* ---- touch D-pad (shown on coarse pointers) ---- */
+  #dpad {
+    display: none;
+    position: fixed; right: 14px; bottom: 86px; z-index: 8;
+    grid-template-columns: repeat(3, 58px); grid-template-rows: repeat(3, 58px);
+    gap: 6px; opacity: 0.92; touch-action: none;
+  }
+  body.touch #dpad { display: grid; }
+  .dp {
+    border: 1.5px solid rgba(236, 228, 212, 0.35); border-radius: 14px;
+    background: rgba(28, 31, 48, 0.85); color: var(--paper);
+    font-size: 21px; font-weight: 800; cursor: pointer; touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .dp:active { background: rgba(217, 164, 65, 0.4); border-color: var(--brass); }
+  .dp.up { grid-area: 1 / 2; }
+  .dp.left { grid-area: 2 / 1; }
+  .dp.mid {
+    grid-area: 2 / 2; pointer-events: none; border-style: dashed;
+    color: var(--brass); font-size: 17px; background: transparent; opacity: 0.6;
+  }
+  .dp.right { grid-area: 2 / 3; }
+  .dp.down { grid-area: 3 / 2; }
+  body.touch #hint { display: none; }
   @media (max-width: 640px) {
     .brand .tag { display: none; }
     #hint { font-size: 12px; }
     .card { padding: 26px 22px; }
     .card h1 { font-size: 27px; }
+    #dpad { grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); bottom: 78px; }
   }
 </style>
 </head>
@@ -173,6 +198,14 @@
     A gem fell into the void.
     <button id="btn-lost-undo">↩ Undo</button>
   </div>
+</div>
+
+<div id="dpad">
+  <button class="dp up" data-a="U" aria-label="Up">▲</button>
+  <button class="dp left" data-a="L" aria-label="Left">◀</button>
+  <div class="dp mid">⚖</div>
+  <button class="dp right" data-a="R" aria-label="Right">▶</button>
+  <button class="dp down" data-a="D" aria-label="Down">▼</button>
 </div>
 
 <footer>

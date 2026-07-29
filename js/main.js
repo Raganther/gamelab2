@@ -251,7 +251,7 @@
   // --- input ----------------------------------------------------------------
   const keys = {};
   let jumpQueued = false;
-  const touch = { left: false, right: false, jump: false };
+  const touch = { left: false, right: false, jump: false, tuck: false };
 
   function firstGesture() { sfx.init(); }
   window.addEventListener('keydown', (e) => {
@@ -296,11 +296,14 @@
     el.addEventListener('pointercancel', off);
     el.addEventListener('pointerleave', off);
   }
-  if ('ontouchstart' in window) {
+  const COARSE = window.matchMedia('(pointer: coarse)').matches ||
+    'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  if (COARSE) {
     hud.touch.classList.remove('hidden');
     bindTouch('btn-left', 'left');
     bindTouch('btn-right', 'right');
     bindTouch('btn-jump', 'jump');
+    bindTouch('btn-tuck', 'tuck');
   }
 
   const input = { steer: 0, jump: false, tuck: false, grab: false };
@@ -309,7 +312,7 @@
     const right = keys.ArrowRight || keys.KeyD || touch.right;
     const target = (right ? 1 : 0) - (left ? 1 : 0);
     input.steer = U.damp(input.steer, target, 12, dt);
-    input.tuck = !!(keys.ArrowUp || keys.KeyW);
+    input.tuck = !!(keys.ArrowUp || keys.KeyW || touch.tuck);
     input.grab = !!(keys.ShiftLeft || keys.ShiftRight || keys.ArrowDown || keys.KeyS || (touch.jump && !player.grounded));
     input.jump = jumpQueued && player.grounded;
     jumpQueued = false;

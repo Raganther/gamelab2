@@ -171,7 +171,8 @@
     touch-action: none;
   }
   .tbtn:active { background: #fff; }
-  .tgroup { display: flex; gap: 14px; }
+  .tbtn.small { width: 62px; height: 62px; font-size: 24px; align-self: flex-end; }
+  .tgroup { display: flex; gap: 14px; align-items: flex-end; }
 </style>
 </head>
 <body class="sky-alpine">
@@ -203,7 +204,10 @@
     <button class="tbtn" id="btn-left">◀</button>
     <button class="tbtn" id="btn-right">▶</button>
   </div>
-  <button class="tbtn" id="btn-jump">⬆</button>
+  <div class="tgroup">
+    <button class="tbtn small" id="btn-tuck">🚀</button>
+    <button class="tbtn" id="btn-jump">⬆</button>
+  </div>
 </div>
 
 <div id="menu" class="overlay">

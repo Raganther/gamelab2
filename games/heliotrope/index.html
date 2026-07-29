@@ -137,11 +137,33 @@
     padding: 9px 22px; border-radius: 999px;
   }
   .quiet-btn:hover { border-color: #7a5b21; }
+  /* ---- touch D-pad (shown on coarse pointers) ---- */
+  #dpad {
+    display: none;
+    position: fixed; right: 14px; bottom: 86px; z-index: 8;
+    grid-template-columns: repeat(3, 58px); grid-template-rows: repeat(3, 58px);
+    gap: 6px; opacity: 0.92; touch-action: none;
+  }
+  body.touch #dpad { display: grid; }
+  .dp {
+    border: 1.5px solid rgba(242, 233, 216, 0.35); border-radius: 14px;
+    background: rgba(26, 40, 32, 0.82); color: var(--parchment);
+    font-size: 21px; font-weight: 800; cursor: pointer; touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .dp:active { background: rgba(255, 210, 127, 0.35); border-color: var(--gold); }
+  .dp.up { grid-area: 1 / 2; }
+  .dp.left { grid-area: 2 / 1; }
+  .dp.mid { grid-area: 2 / 2; color: var(--gold); font-size: 24px; }
+  .dp.right { grid-area: 2 / 3; }
+  .dp.down { grid-area: 3 / 2; }
+  body.touch #hint { display: none; }
   @media (max-width: 640px) {
     .brand .tag { display: none; }
     #hint { font-size: 12px; }
     .card { padding: 26px 22px; }
     .card h1 { font-size: 30px; }
+    #dpad { grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); bottom: 78px; }
   }
 </style>
 </head>
@@ -157,6 +179,14 @@
 </header>
 
 <div id="stage"><canvas id="board"></canvas></div>
+
+<div id="dpad">
+  <button class="dp up" data-a="U" aria-label="Up">▲</button>
+  <button class="dp left" data-a="L" aria-label="Left">◀</button>
+  <button class="dp mid" data-a="W" aria-label="Wait">☀</button>
+  <button class="dp right" data-a="R" aria-label="Right">▶</button>
+  <button class="dp down" data-a="D" aria-label="Down">▼</button>
+</div>
 
 <footer>
   <div class="btnrow">
