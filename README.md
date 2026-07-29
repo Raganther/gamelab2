@@ -5,7 +5,9 @@
 > **⚖️ [Counterweight](games/counterweight/)** — a puzzle game on a plate
 > balanced over the void, where gravity is never chosen, only computed — and
 > **🎼 [Chimework](games/chimework/)** — a 3D clockwork music box where you
-> pin the song, not the marble, and every pin fires again each revolution.
+> pin the song, not the marble, and every pin fires again each revolution — and
+> **🐉 [Wyrmway](games/wyrmway/)** — a one-control arcade game where you are a
+> cloud-serpent, and your own body is the bridge the pilgrims cross.
 
 # 🏂 Powder Peak — 3D Snowboarding
 

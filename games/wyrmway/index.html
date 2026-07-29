@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Wyrmway — you are the bridge</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐉</text></svg>">
+<style>
+  :root {
+    --ink: #4a2c40;
+    --cream: #fff4e4;
+    --coral: #e8543c;
+    --jade: #3fae8c;
+    --gold: #e8a03c;
+    --round: 'Avenir Next Rounded', 'Nunito', 'Quicksand', 'Trebuchet MS', system-ui, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: linear-gradient(#ffe3b8, #9d6b96);
+    font-family: var(--round);
+    color: var(--ink);
+    user-select: none; -webkit-user-select: none;
+    touch-action: none; overflow: hidden;
+  }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 14px 18px; pointer-events: none;
+  }
+  .card {
+    background: rgba(255, 244, 228, 0.85); border-radius: 16px; padding: 8px 16px;
+    box-shadow: 0 4px 14px rgba(74, 44, 64, 0.2);
+  }
+  #score { font-size: 32px; font-weight: 800; line-height: 1; }
+  #best { font-size: 11px; font-weight: 800; letter-spacing: 1.5px; color: var(--coral); margin-top: 2px; }
+  .right { display: flex; gap: 10px; align-items: center; }
+  #lanterns { font-size: 20px; letter-spacing: 4px; }
+  #lanterns .lit { color: var(--gold); text-shadow: 0 0 8px rgba(232, 160, 60, 0.8); }
+  #lanterns .out { color: rgba(74, 44, 64, 0.2); }
+  #btn-mute {
+    pointer-events: auto; border: 0; background: rgba(255, 244, 228, 0.85);
+    border-radius: 12px; font-size: 17px; padding: 6px 10px; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(74, 44, 64, 0.2);
+  }
+
+  #wave-banner {
+    position: fixed; top: 20%; left: 50%; transform: translateX(-50%) scale(0.8);
+    font-size: 34px; font-weight: 800; letter-spacing: 1px; color: var(--cream);
+    text-shadow: 0 3px 0 rgba(74, 44, 64, 0.4); opacity: 0; pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s; white-space: nowrap;
+  }
+  #wave-banner.show { opacity: 1; transform: translateX(-50%) scale(1); }
+
+  .overlay {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(74, 44, 64, 0.38); backdrop-filter: blur(3px);
+  }
+  .hidden { display: none !important; }
+  .panel {
+    background: var(--cream); border-radius: 26px; padding: 34px 42px;
+    max-width: 520px; width: calc(100% - 44px); text-align: center;
+    box-shadow: 0 26px 70px rgba(74, 44, 64, 0.45);
+  }
+  .title {
+    font-size: 52px; font-weight: 800; letter-spacing: 1px; line-height: 1.02;
+    background: linear-gradient(100deg, var(--jade), var(--gold) 55%, var(--coral));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .sub { font-size: 13px; font-weight: 800; letter-spacing: 4px; opacity: 0.5; margin-top: 6px; }
+  .story {
+    font-size: 15.5px; line-height: 1.6; margin-top: 18px; color: #6e4a5e;
+    text-wrap: balance; font-weight: 600;
+  }
+  .story b { color: var(--coral); }
+  .big-btn {
+    margin-top: 24px; border: 0; cursor: pointer;
+    font-family: inherit; font-size: 20px; font-weight: 800; letter-spacing: 1px;
+    color: #fff; background: linear-gradient(100deg, var(--coral), #f08a4c);
+    padding: 14px 48px; border-radius: 999px;
+    box-shadow: 0 8px 22px rgba(232, 84, 60, 0.45);
+    transition: transform 0.1s ease;
+  }
+  .big-btn:hover { transform: scale(1.05); }
+  .stats { margin-top: 14px; font-size: 15px; font-weight: 700; color: #6e4a5e; }
+  .stats .num { font-size: 46px; font-weight: 800; color: var(--ink); line-height: 1.1; }
+  #new-best {
+    display: inline-block; margin-top: 10px; font-weight: 800; letter-spacing: 2px;
+    color: #fff; background: var(--jade); padding: 4px 16px; border-radius: 999px; font-size: 13px;
+  }
+  .hint { margin-top: 14px; font-size: 12px; font-weight: 700; opacity: 0.5; }
+  @media (max-width: 640px) {
+    .title { font-size: 36px; }
+    .panel { padding: 26px 22px; }
+  }
+  #rotate-hint { display: none; color: var(--coral); }
+  @media (orientation: portrait) and (pointer: coarse) {
+    #rotate-hint { display: block; }
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div class="card">
+    <div id="score">0</div>
+    <div id="best">BEST 0</div>
+  </div>
+  <div class="right">
+    <div class="card"><span id="lanterns"></span></div>
+    <button id="btn-mute" title="Mute (M)">🔊</button>
+  </div>
+</div>
+
+<div id="wave-banner"></div>
+
+<div id="menu" class="overlay">
+  <div class="panel">
+    <div class="title">WYRMWAY</div>
+    <div class="sub">YOU ARE THE BRIDGE</div>
+    <p class="story">
+      The pilgrims walk at dawn, straight off the edge of their island —
+      they believe the sky-serpent will be there. <b>You are the serpent.</b><br>
+      Drag your head anywhere; your long body follows. Lay your coils across the gap
+      and let them march over your back. Catch the ones who slip. Mind the wind.
+    </p>
+    <button class="big-btn" id="btn-start">Rise with the dawn 🐉</button>
+    <div class="hint">Mouse or finger — that's every control there is. 3 lost pilgrims ends the flight.</div>
+    <div class="hint" id="rotate-hint">🔄 Rotate your phone sideways for a grander sky</div>
+  </div>
+</div>
+
+<div id="over" class="overlay hidden">
+  <div class="panel">
+    <div class="title" style="font-size: 40px;">The lanterns are out.</div>
+    <div class="stats">
+      <div class="num" id="final-score">0</div>
+      pilgrims' thanks · reached wave <span id="final-wave">1</span>
+      <div style="margin-top: 6px; opacity: 0.6;">BEST <span id="final-best">0</span></div>
+      <div id="new-best" class="hidden">★ NEW BEST ★</div>
+    </div>
+    <button class="big-btn" id="btn-again">Fly again 🐉</button>
+    <div class="hint">Enter also restarts</div>
+  </div>
+</div>
+
+<script src="js/serpent.js"></script>
+<script src="js/world.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
