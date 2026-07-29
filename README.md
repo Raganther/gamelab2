@@ -1,7 +1,9 @@
 > This repo is a small game lab. Games so far:
-> **🏂 Powder Peak** (this page, at the repo root) and
+> **🏂 Powder Peak** (this page, at the repo root),
 > **🌻 [Heliotrope](games/heliotrope/)** — a puzzle game where you are the sun
-> and every step you take, the garden grows one step toward you.
+> and every step you take, the garden grows one step toward you — and
+> **⚖️ [Counterweight](games/counterweight/)** — a puzzle game on a plate
+> balanced over the void, where gravity is never chosen, only computed.
 
 # 🏂 Powder Peak — 3D Snowboarding
 
