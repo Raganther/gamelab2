@@ -3,7 +3,9 @@
 > **🌻 [Heliotrope](games/heliotrope/)** — a puzzle game where you are the sun
 > and every step you take, the garden grows one step toward you — and
 > **⚖️ [Counterweight](games/counterweight/)** — a puzzle game on a plate
-> balanced over the void, where gravity is never chosen, only computed.
+> balanced over the void, where gravity is never chosen, only computed — and
+> **🎼 [Chimework](games/chimework/)** — a 3D clockwork music box where you
+> pin the song, not the marble, and every pin fires again each revolution.
 
 # 🏂 Powder Peak — 3D Snowboarding
 

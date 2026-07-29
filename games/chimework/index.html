@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Chimework — a music-box machine puzzle</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎼</text></svg>">
+<style>
+  :root {
+    --velvet: #171020;
+    --velvet-2: #221731;
+    --cream: #f4ead6;
+    --ink: #241a10;
+    --copper: #d98e5a;
+    --copper-deep: #a45f33;
+    --teal: #7fb6a4;
+    --faded: rgba(244, 234, 214, 0.55);
+    --serif: 'Didot', 'Bodoni MT', 'Playfair Display', Georgia, serif;
+    --sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background:
+      radial-gradient(ellipse at 50% 30%, rgba(217, 142, 90, 0.10) 0%, rgba(217, 142, 90, 0) 60%),
+      linear-gradient(180deg, #1d1428 0%, var(--velvet) 60%, #120c1a 100%);
+    color: var(--cream);
+    font-family: var(--sans);
+    user-select: none;
+    -webkit-user-select: none;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px 8px; gap: 12px;
+  }
+  .brand {
+    font-family: var(--serif); font-size: 21px; color: var(--copper);
+    letter-spacing: 2px; white-space: nowrap;
+  }
+  .brand .tag { font-size: 10px; color: var(--faded); letter-spacing: 2.5px; font-family: var(--sans); }
+  #level-name {
+    font-family: var(--serif); font-size: 17px; letter-spacing: 1px;
+    text-align: center; flex: 1;
+  }
+  .stats { display: flex; gap: 16px; align-items: baseline; white-space: nowrap; font-size: 12px; color: var(--faded); }
+  .stats b { font-size: 19px; color: var(--copper); font-variant-numeric: tabular-nums; }
+
+  #stage { flex: 1; position: relative; min-height: 0; }
+  #view { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+
+  #toast {
+    position: absolute; left: 50%; top: 14px; transform: translateX(-50%);
+    background: rgba(46, 26, 40, 0.94); border: 1px solid #8a5a74;
+    color: #ffdff0; border-radius: 12px; padding: 10px 16px;
+    font-size: 13.5px; display: flex; gap: 12px; align-items: center; z-index: 5;
+    max-width: calc(100% - 40px);
+  }
+  #toast-close {
+    background: #8a5a74; border: 0; color: #fff; border-radius: 8px;
+    padding: 4px 12px; font-weight: 800; cursor: pointer;
+  }
+
+  /* ---- the pin roll ---- */
+  #panel {
+    padding: 10px 20px 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  #roll {
+    display: grid; gap: 5px; align-items: center;
+    background: rgba(34, 23, 49, 0.6); border: 1px solid rgba(217, 142, 90, 0.25);
+    border-radius: 14px; padding: 10px 12px;
+  }
+  .row-label {
+    font-size: 12px; font-weight: 700; letter-spacing: 1px; color: var(--faded);
+    display: flex; align-items: center; gap: 7px; padding-right: 8px; white-space: nowrap;
+  }
+  .swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .socket {
+    height: 34px; border-radius: 8px; cursor: pointer;
+    border: 1.5px dashed rgba(244, 234, 214, 0.22);
+    background: transparent; touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .socket:hover { border-color: var(--copper); }
+  .socket.pinned {
+    border-style: solid; border-color: var(--row-color);
+    background: radial-gradient(circle at 50% 40%, var(--row-color) 0%, transparent 65%);
+    box-shadow: 0 0 10px 0 var(--row-color) inset;
+  }
+  .socket.now { outline: 2px solid rgba(244, 234, 214, 0.7); outline-offset: 1px; }
+
+  .controls-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  #hint {
+    font-family: var(--serif); font-style: italic; font-size: 13.5px;
+    color: var(--faded); text-align: center; flex: 1; text-wrap: balance;
+  }
+  .btnrow { display: flex; gap: 8px; align-items: center; }
+  .ui-btn {
+    background: var(--velvet-2); border: 1px solid rgba(244, 234, 214, 0.2);
+    color: var(--cream); border-radius: 10px; padding: 8px 14px;
+    font-family: var(--sans); font-size: 13px; font-weight: 700; cursor: pointer;
+    letter-spacing: 0.5px; touch-action: manipulation;
+  }
+  .ui-btn:hover:not(:disabled) { border-color: var(--copper); color: var(--copper); }
+  .ui-btn:disabled { opacity: 0.3; cursor: default; }
+  .ui-btn.busy { border-color: var(--copper); color: var(--copper); animation: busypulse 1s infinite; }
+  @keyframes busypulse { 50% { opacity: 0.55; } }
+  #btn-play {
+    background: linear-gradient(100deg, var(--copper), var(--copper-deep));
+    color: #241207; border: 0; font-size: 15px; padding: 9px 26px;
+  }
+  #pins-left { display: inline-block; min-width: 1.4em; text-align: center; }
+  #pins-left.flash { color: #ff8d7a; transform: scale(1.3); transition: transform 0.15s; }
+
+  #dots { display: flex; gap: 7px; align-items: center; }
+  .dot {
+    width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--faded);
+    background: transparent; cursor: pointer; padding: 0;
+  }
+  .dot.done { background: var(--copper); border-color: var(--copper); }
+  .dot.cur { border-color: #fff; box-shadow: 0 0 8px rgba(217, 142, 90, 0.9); }
+  .dot.locked { opacity: 0.25; cursor: default; }
+
+  .overlay {
+    position: fixed; inset: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(12, 8, 18, 0.8); backdrop-filter: blur(4px);
+  }
+  .hidden { display: none !important; }
+  .card {
+    background: var(--cream); color: var(--ink);
+    border-radius: 16px; padding: 32px 38px; max-width: 500px; width: calc(100% - 40px);
+    text-align: center; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8);
+    border-bottom: 4px solid var(--copper);
+  }
+  .card h1 {
+    font-family: var(--serif); font-weight: 600;
+    font-size: 34px; letter-spacing: 1px; color: #7a4a22; line-height: 1.15;
+    text-wrap: balance;
+  }
+  .card .rule {
+    font-family: var(--serif); font-size: 16px; line-height: 1.6;
+    margin: 15px 0 4px; color: #46341f; text-wrap: balance;
+  }
+  .go-btn {
+    margin-top: 20px; border: 0; cursor: pointer;
+    font-family: var(--serif); font-size: 18px; letter-spacing: 2px;
+    color: #241207; background: linear-gradient(100deg, var(--copper), var(--copper-deep));
+    padding: 12px 42px; border-radius: 999px;
+    box-shadow: 0 8px 22px rgba(217, 142, 90, 0.4);
+    transition: transform 0.1s ease;
+  }
+  .go-btn:hover { transform: scale(1.04); }
+  .win-pins { font-size: 15px; margin-top: 10px; color: #46341f; }
+  .win-pins b { font-size: 26px; color: #7a4a22; }
+  #win-perfect {
+    display: inline-block; margin-top: 12px; background: var(--teal); color: #0c332a;
+    font-size: 12px; font-weight: 800; letter-spacing: 2px;
+    padding: 4px 14px; border-radius: 999px;
+  }
+  .quiet-btn {
+    margin-top: 14px; margin-left: 10px; background: transparent; cursor: pointer;
+    border: 1.5px solid rgba(36, 26, 16, 0.3); color: #46341f;
+    font-family: var(--sans); font-size: 13px; font-weight: 700; letter-spacing: 1px;
+    padding: 9px 22px; border-radius: 999px;
+  }
+  @media (max-width: 640px) {
+    .brand .tag { display: none; }
+    #hint { display: none; }
+    .card { padding: 24px 20px; }
+    .card h1 { font-size: 26px; }
+    .socket { height: 30px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">CHIMEWORK <span class="tag">A MUSIC-BOX MACHINE</span></div>
+  <div id="level-name">1. First Note</div>
+  <div class="stats">
+    <span>pins left <b id="pins-left">0</b></span>
+    <span id="par">best possible 1</span>
+    <span id="best"></span>
+  </div>
+</header>
+
+<div id="stage">
+  <canvas id="view"></canvas>
+  <div id="toast" class="hidden">
+    <span id="toast-text"></span>
+    <button id="toast-close">OK</button>
+  </div>
+</div>
+
+<div id="panel">
+  <div id="roll"></div>
+  <div class="controls-row">
+    <div class="btnrow">
+      <button class="ui-btn" id="btn-prev" title="Previous level">◀</button>
+      <div id="dots"></div>
+      <button class="ui-btn" id="btn-next" title="Next level">▶</button>
+    </div>
+    <div id="hint"></div>
+    <div class="btnrow">
+      <button class="ui-btn" id="btn-play">▶ Play</button>
+      <button class="ui-btn" id="btn-clear" title="Clear pins (R)">✕ Clear</button>
+      <button class="ui-btn" id="btn-solve" title="Watch the optimal tune">✨ Solve</button>
+      <button class="ui-btn" id="btn-help">?</button>
+      <button class="ui-btn" id="btn-mute" title="Mute (M)">🔊</button>
+    </div>
+  </div>
+</div>
+
+<div id="intro" class="overlay">
+  <div class="card">
+    <h1>Wind the box.<br>Pin the song.</h1>
+    <p class="rule">
+      The drum turns one beat at a time, and <b>every pin fires again each time the
+      drum comes back around</b>. Each row of the drum strikes one mechanism:
+      hammers launch the marble <i>only on their exact beat</i>; switches flip and stay
+      flipped — until the drum returns.
+    </p>
+    <p class="rule" style="font-size: 13.5px; margin-top: 8px;">
+      Tap sockets on the pin roll below to place your pins, then press Play and watch
+      the machine run. Guide the marble to the golden cup. Fewer pins, sweeter song.
+      Drag the box to look around.
+    </p>
+    <button class="go-btn" id="btn-start">Wind it up ♪</button>
+  </div>
+</div>
+
+<div id="win" class="overlay hidden">
+  <div class="card">
+    <h1 id="win-title">The box sings.</h1>
+    <p class="rule hidden" id="win-sub" style="font-size: 14px;">Watching earns no progress — now pin it yourself.</p>
+    <p class="win-pins"><b id="win-pins">0</b> pins · best possible <span id="win-par">0</span></p>
+    <div id="win-perfect" class="hidden">♪ PERFECT PITCH</div>
+    <br>
+    <button class="go-btn" id="btn-win-next">Next tune ▸</button>
+    <button class="quiet-btn" id="btn-win-replay">Keep tinkering</button>
+  </div>
+</div>
+
+<script src="../../lib/three.min.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/levels.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
